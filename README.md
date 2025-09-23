@@ -19,7 +19,7 @@ Spoonacular: https://spoonacular.com/food-api
 Список покупок: [wireframes/shopping_list.png]
 
 ## Документация
-[SRS.md](docs/SRS.md)
+[SRS.md](docs/Requirements/SRS.md)
 
 No releases published.  
 No packages published.
