@@ -17,9 +17,9 @@ Spoonacular: https://spoonacular.com/food-api
 [Кладовая](Mockup/pantry_screen.png)  
 [Рецепты](Mockup/recipes_screen.png)  
 [Список покупок](Mockup/shopping_list.png)  
+[Избранные рецепты](Mockup/favorite_recipes_screen.png)  
+[Добавить рецепт](Mockup/add_recipe_screen.png)  
 
 ## Документация
 [SRS.md](docs/Requirements/SRS.md)
 
-No releases published.  
-No packages published.
