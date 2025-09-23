@@ -13,10 +13,10 @@ KitchenMate позволяет добавлять продукты в вирту
 Spoonacular: https://spoonacular.com/food-api
 
 ## Мокапы
-[Главный экран](Mockup/main_screen.png)
+[Главный экран](Mockup/main_screen.png)  
 [Кладовая](Mockup/pantry_screen.png)  
-[Рецепты](Mockup/recipes_screen.png)
-[Список покупок](Mockup/shopping_list.png)
+[Рецепты](Mockup/recipes_screen.png)  
+[Список покупок](Mockup/shopping_list.png)  
 
 ## Документация
 [SRS.md](docs/Requirements/SRS.md)
