@@ -1,8 +1,8 @@
 # KitchenMate
 
-The KitchenMate app helps users plan meals by managing pantry inventory, searching recipes via Spoonacular API, and generating shopping lists.
+Приложение KitchenMate помогает пользователям планировать питание, управляя запасами в кладовой, осуществляя поиск рецептов через Spoonacular API и создавая списки покупок.
 
-## About
+## Описание
 KitchenMate позволяет добавлять продукты в виртуальную кладовую, искать рецепты по имеющимся ингредиентам и создавать списки покупок. Цель — экономия времени и снижение пищевых отходов.
 
 ## Бизнес-цели
