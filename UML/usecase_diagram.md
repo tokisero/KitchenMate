@@ -1,5 +1,6 @@
 # Случаи использования для KitchenMate
 <img width="1223" height="626" alt="usecase_diagram" src="https://github.com/user-attachments/assets/a389c088-49dd-45ce-a4c5-9d7acd7ff4ed" />
+
 ## Актеры
 
 - **Основной актер**: Пользователь (пользователь приложения, который управляет кладовой, ищет рецепты и генерирует списки покупок).
