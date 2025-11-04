@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import ttk, messagebox
 import webbrowser
 from config import TITLE_FONT, HEADER_FONT, BODY_FONT, GREEN
 
@@ -10,14 +10,15 @@ class RecipesScreen(tk.Frame):
         self.controller = controller
         self.app = app
         self.green = green
+        self.red = app.red  # Фикс: берём red из app
         self.recipes_data = []
         self.place(x=0, y=0, width=800, height=700)
 
-        tk.Label(self, text="Найденные рецепты", font=TITLE_FONT, bg='white').pack(pady=20)
+        tk.Label(self, text="Найденные рецепты", font=TITLE_FONT, bg='white').pack(pady=30)
 
-        # Scrollable для карточек
+        # Scrollable для карточек (полный вид)
         canvas_frame = tk.Frame(self, bg='white')
-        canvas_frame.pack(fill='both', expand=True, padx=20, pady=10)
+        canvas_frame.pack(fill='both', expand=True, padx=30, pady=20)
         self.canvas = tk.Canvas(canvas_frame, bg='white', height=500)
         scrollbar = tk.Scrollbar(canvas_frame, orient='vertical', command=self.canvas.yview)
         self.scrollable_frame = tk.Frame(self.canvas, bg='white')
@@ -34,32 +35,32 @@ class RecipesScreen(tk.Frame):
         self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
         # Кнопка
-        tk.Button(self, text="Сохранить отсутствующие в список покупок", bg=self.green, fg='white', font=BODY_FONT,
-                  command=self.save_missing_to_shopping).pack(pady=5)
+        ttk.Button(self, text="Сохранить отсутствующие в список покупок", command=self.save_missing_to_shopping).pack(
+            pady=20)
 
     def update_list(self):
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
 
         for recipe in self.app.recipes_data:
-            card = tk.Frame(self.scrollable_frame, bg='white', relief='solid', bd=1, padx=10, pady=10)
-            card.pack(fill='x', pady=5)
+            card = tk.Frame(self.scrollable_frame, bg='white', relief='flat', bd=0, padx=20, pady=20)
+            card.pack(fill='x', pady=10)
 
             # Название
-            tk.Label(card, text=recipe['title'], font=HEADER_FONT, bg='white').pack(anchor='w')
+            tk.Label(card, text=recipe['title'], font=HEADER_FONT, bg='white').pack(anchor='w', pady=(0, 10))
 
             # Ингредиенты с цветом
             ing_frame = tk.Frame(card, bg='white')
-            ing_frame.pack(fill='x', pady=5)
+            ing_frame.pack(fill='x', pady=10)
             for ing in recipe.get('full_ingredients', []):
                 name = ing['name'].lower()
                 pantry_match = any(p['name'].lower() == name for p in self.app.pantry_items)
-                color = self.green if pantry_match else self.red
+                color = self.green if pantry_match else self.red  # Теперь self.red работает
                 fg = 'white' if color == self.red else 'black'
                 bg = 'lightgreen' if pantry_match else 'lightcoral'
                 label = tk.Label(ing_frame, text=f"{ing['amount']} {ing['name'].title()}", fg=fg, bg=bg, font=BODY_FONT,
-                                 relief='solid', bd=1, padx=5)
-                label.pack(anchor='w', pady=1)
+                                 relief='flat', padx=10, pady=5)
+                label.pack(anchor='w')
 
             # Сердечко
             heart = tk.Label(card, text='♥', font=('Arial', 20), fg=self.green, bg='white')

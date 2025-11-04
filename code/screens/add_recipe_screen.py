@@ -13,61 +13,45 @@ class AddRecipeScreen(tk.Frame):
         self.ingredients_list = []
         self.place(x=0, y=0, width=800, height=700)
 
-        # Scrollable
-        canvas_frame = tk.Frame(self, bg='white')
-        canvas_frame.pack(fill='both', expand=True, padx=20, pady=10)
-        self.canvas = tk.Canvas(canvas_frame, bg='white', height=600)
-        scrollbar = tk.Scrollbar(canvas_frame, orient='vertical', command=self.canvas.yview)
-        self.scrollable_frame = tk.Frame(self.canvas, bg='white')
-        self.scrollable_frame.bind('<Configure>', lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
-        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor='nw')
-        self.canvas.configure(yscrollcommand=scrollbar.set)
-        self.canvas.pack(side='left', fill='both', expand=True)
-        scrollbar.pack(side='right', fill='y')
-
-        def _on_mousewheel(event):
-            self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-
-        self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
-
         self.create_forms()
 
     def create_forms(self):
-        tk.Label(self.scrollable_frame, text="Добавить свой рецепт", font=TITLE_FONT, bg='white').pack(pady=20)
+        tk.Label(self, text="Добавить свой рецепт", font=TITLE_FONT, bg='white').pack(pady=20)
 
-        tk.Label(self.scrollable_frame, text="Название рецепта:", font=BODY_FONT, bg='white').pack()
-        self.name_entry = tk.Entry(self.scrollable_frame, width=50, font=BODY_FONT)
-        self.name_entry.pack(pady=10)
+        # Название
+        tk.Label(self, text="Название рецепта:", font=BODY_FONT, bg='white').pack(pady=5)
+        self.name_entry = ttk.Entry(self, width=40, font=BODY_FONT)  # Компактнее
+        self.name_entry.pack(pady=5)
 
-        # Ингредиент (combo + кнопка)
-        ing_frame = tk.Frame(self.scrollable_frame, bg='white')
+        # Ингредиент
+        ing_frame = tk.Frame(self, bg='white')
         ing_frame.pack(pady=10)
         tk.Label(ing_frame, text="Ингредиент:", font=BODY_FONT, bg='white').pack(side='left')
-        self.ing_combo = ttk.Combobox(ing_frame, values=INGREDIENTS_OPTIONS, width=30, font=BODY_FONT)
+        self.ing_combo = ttk.Combobox(ing_frame, values=INGREDIENTS_OPTIONS, width=25, font=BODY_FONT)  # Компактнее
         self.ing_combo.pack(side='left', padx=10)
-        tk.Button(ing_frame, text="Добавить", bg=self.green, fg='white', font=BODY_FONT, width=15,
-                  command=self.add_ingredient).pack(side='left', padx=10)
+        ttk.Button(ing_frame, text="Добавить", command=self.add_ingredient).pack(side='left', padx=10)
 
-        # Listbox для ингредиентов
-        tk.Label(self.scrollable_frame, text="Список ингредиентов:", font=BODY_FONT, bg='white').pack(pady=(10, 0))
-        self.ing_listbox = tk.Listbox(self.scrollable_frame, height=6, width=60, font=BODY_FONT)
-        self.ing_listbox.pack(pady=10)
+        # Список ингредиентов
+        tk.Label(self, text="Список ингредиентов:", font=BODY_FONT, bg='white').pack(pady=(10, 0))
+        self.ing_listbox = tk.Listbox(self, height=3, width=50, font=BODY_FONT)  # Уменьшено
+        self.ing_listbox.pack(pady=5)
 
         # Инструкция
-        tk.Label(self.scrollable_frame, text="Инструкция:", font=BODY_FONT, bg='white').pack()
-        self.instr_text = tk.Text(self.scrollable_frame, height=6, width=60, font=BODY_FONT)
-        self.instr_text.pack(pady=10)
+        tk.Label(self, text="Инструкция:", font=BODY_FONT, bg='white').pack(pady=5)
+        self.instr_text = tk.Text(self, height=3, width=50, font=BODY_FONT)  # Уменьшено
+        self.instr_text.pack(pady=5)
 
         # Время
-        tk.Label(self.scrollable_frame, text="Время приготовления:", font=BODY_FONT, bg='white').pack()
-        self.time_combo = ttk.Combobox(self.scrollable_frame, values=TIME_OPTIONS, width=57, font=BODY_FONT)
-        self.time_combo.pack(pady=10)
+        tk.Label(self, text="Время приготовления:", font=BODY_FONT, bg='white').pack(pady=5)
+        self.time_combo = ttk.Combobox(self, values=TIME_OPTIONS, width=47, font=BODY_FONT)  # Компактнее
+        self.time_combo.pack(pady=5)
 
         # Кнопки
-        tk.Button(self.scrollable_frame, text="Сохранить рецепт", bg=self.green, fg='white', font=BODY_FONT, width=25,
-                  command=self.save_recipe).pack(pady=20)
-        tk.Button(self.scrollable_frame, text="Назад", bg=self.gray, fg='white', font=BODY_FONT, width=25,
-                  command=lambda: self.controller.show_frame('main')).pack()
+        btn_frame = tk.Frame(self, bg='white')
+        btn_frame.pack(pady=10)
+        ttk.Button(btn_frame, text="Сохранить рецепт", width=20, command=self.save_recipe).pack(side='left', padx=10)
+        ttk.Button(btn_frame, text="Назад", width=20, command=lambda: self.controller.show_frame('main')).pack(
+            side='left', padx=10)
 
     def add_ingredient(self):
         ing = self.ing_combo.get()

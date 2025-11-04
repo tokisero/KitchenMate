@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
-from config import TITLE_FONT, BODY_FONT
+from config import TITLE_FONT, BODY_FONT  # Фикс: абсолютный импорт
 
 
 class ShoppingScreen(tk.Frame):
@@ -16,20 +16,19 @@ class ShoppingScreen(tk.Frame):
 
         tk.Label(self, text="Список покупок", font=TITLE_FONT, bg='white').pack(pady=20)
 
-        # Scrollable
-        list_frame = tk.Frame(self)
-        list_frame.pack(fill='both', expand=True, padx=20, pady=10)
-        self.list_canvas = tk.Canvas(list_frame, bg='white')
+        # Scrollable (центрирование по фото)
+        list_frame = tk.Frame(self, bg='white')
+        list_frame.place(relx=0.5, rely=0.5, anchor='center')
+        self.list_canvas = tk.Canvas(list_frame, bg='white', width=600, height=400)
         scrollbar = tk.Scrollbar(list_frame, orient='vertical', command=self.list_canvas.yview)
         self.scrollable_frame = tk.Frame(self.list_canvas, bg='white')
         self.scrollable_frame.bind('<Configure>',
                                    lambda e: self.list_canvas.configure(scrollregion=self.list_canvas.bbox("all")))
         self.list_canvas.create_window((0, 0), window=self.scrollable_frame, anchor='nw')
         self.list_canvas.configure(yscrollcommand=scrollbar.set)
-        self.list_canvas.pack(side='left', fill='both', expand=True)
+        self.list_canvas.pack(side='left', fill='both')
         scrollbar.pack(side='right', fill='y')
 
-        # Скролл колёсиком
         def _on_mousewheel(event):
             self.list_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
@@ -37,19 +36,21 @@ class ShoppingScreen(tk.Frame):
 
         self.update_checkboxes()
 
-        # Кнопка подтверждения (под списком)
+        # Кнопка подтверждения (внизу по фото)
         self.confirm_btn = tk.Button(self, text="Подтвердить отмеченные", bg=self.green, fg='white', font=BODY_FONT,
-                                     command=self.confirm_checked)
-        self.confirm_btn.pack(pady=10)
+                                     relief='flat', bd=0, padx=20, pady=10, command=self.confirm_checked)
+        self.confirm_btn.pack(side='bottom', pady=20)
 
-        # Добавление (под подтверждением)
-        add_frame = tk.Frame(self)
-        add_frame.pack(pady=10, fill='x', padx=20)
-        tk.Label(add_frame, text="Покупка...:", font=BODY_FONT, bg='white').pack(side='left')
-        self.shop_entry = tk.Entry(add_frame, width=40, font=BODY_FONT)
-        self.shop_entry.pack(side='left', padx=5)
-        tk.Button(add_frame, text="Добавить", bg=self.green, fg='white', font=BODY_FONT, width=15,
-                  command=self.add_item).pack(side='left')
+        # Добавление (input растянуто, кнопка справа)
+        self.add_frame = tk.Frame(self, bg='white')
+        self.add_frame.pack(pady=10, fill='x', padx=20)
+        tk.Label(self.add_frame, text="Покупка...:", font=BODY_FONT, bg='white').pack(side='left')
+        self.shop_entry = tk.Entry(self.add_frame, font=BODY_FONT, relief='flat', bd=1, highlightcolor=self.green)
+        self.shop_entry.pack(side='left', fill='x', expand=True, padx=10)  # Растянуто
+        self.add_btn = tk.Button(self.add_frame, text="Добавить", bg=self.green, fg='white', font=BODY_FONT,
+                                 relief='flat', bd=0, width=15,
+                                 command=self.add_item)
+        self.add_btn.pack(side='right')
 
     def update_checkboxes(self):
         for widget in self.scrollable_frame.winfo_children():
@@ -64,13 +65,13 @@ class ShoppingScreen(tk.Frame):
             var = tk.BooleanVar(value=item['checked'])
             self.shopping_vars.append(var)
             chk = tk.Checkbutton(frame, text=f"{item['name']}: {item['amount']}", variable=var, bg='white',
-                                 font=BODY_FONT)
-            chk.pack(side='left', fill='x', expand=True)  # Левый край, растягивается
+                                 font=BODY_FONT, relief='flat')
+            chk.pack(side='left', fill='x', expand=True)  # Текст слева, растянуто
 
             # Крестик в самом правом краю
-            del_btn = tk.Button(frame, text='×', bg=self.red, fg='white', font=BODY_FONT,
-                                width=2, command=lambda i=idx: self.delete_item(i))
-            del_btn.pack(side='right', padx=0)  # Самый правый край
+            del_btn = tk.Button(frame, text='❌', bg=self.red, fg='white', font=BODY_FONT,
+                                relief='flat', bd=0, width=2, command=lambda i=idx: self.delete_item(i))
+            del_btn.pack(side='right', padx=0)  # Правый край
 
             self.check_frames.append(frame)
 
