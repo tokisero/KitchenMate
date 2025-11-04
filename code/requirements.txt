@@ -1,0 +1,2 @@
+requests
+pillow  # Для фото (опционально, добавь в load_photo)
