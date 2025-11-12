@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
-from config import TITLE_FONT, BODY_FONT  # Фикс: абсолютный импорт
+from config import TITLE_FONT, BODY_FONT
 
 
 class ShoppingScreen(tk.Frame):
@@ -46,7 +46,7 @@ class ShoppingScreen(tk.Frame):
         self.add_frame.pack(pady=10, fill='x', padx=20)
         tk.Label(self.add_frame, text="Покупка...:", font=BODY_FONT, bg='white').pack(side='left')
         self.shop_entry = tk.Entry(self.add_frame, font=BODY_FONT, relief='flat', bd=1, highlightcolor=self.green)
-        self.shop_entry.pack(side='left', fill='x', expand=True, padx=10)  # Растянуто
+        self.shop_entry.pack(side='left', fill='x', expand=True, padx=10)  # Растянуто с пробелами
         self.add_btn = tk.Button(self.add_frame, text="Добавить", bg=self.green, fg='white', font=BODY_FONT,
                                  relief='flat', bd=0, width=15,
                                  command=self.add_item)
@@ -66,12 +66,12 @@ class ShoppingScreen(tk.Frame):
             self.shopping_vars.append(var)
             chk = tk.Checkbutton(frame, text=f"{item['name']}: {item['amount']}", variable=var, bg='white',
                                  font=BODY_FONT, relief='flat')
-            chk.pack(side='left', fill='x', expand=True)  # Текст слева, растянуто
+            chk.pack(side='left', fill='x', expand=True)  # Текст слева с пробелами (expand)
 
             # Крестик в самом правом краю
             del_btn = tk.Button(frame, text='❌', bg=self.red, fg='white', font=BODY_FONT,
                                 relief='flat', bd=0, width=2, command=lambda i=idx: self.delete_item(i))
-            del_btn.pack(side='right', padx=0)  # Правый край
+            del_btn.pack(side='right', padx=0)  # Самый правый край
 
             self.check_frames.append(frame)
 

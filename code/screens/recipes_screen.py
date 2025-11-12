@@ -10,7 +10,8 @@ class RecipesScreen(tk.Frame):
         self.controller = controller
         self.app = app
         self.green = green
-        self.red = app.red  # Фикс: берём red из app
+        self.red = app.red  # Фикс: red из app
+        self.gray = app.gray  # Фикс: gray из app
         self.recipes_data = []
         self.place(x=0, y=0, width=800, height=700)
 

@@ -83,6 +83,9 @@ class KitchenMateApp:
         self.update_tab_highlight()
         self.animate_fade_in(self.frames[frame_name])
 
+        if frame_name == 'pantry':
+            self.frames['pantry'].update_table()  # Обновление при входе
+
     def update_tab_highlight(self):
         for child in self.nav_frame.winfo_children():
             child.configure(style='TButton')
@@ -192,7 +195,7 @@ class KitchenMateApp:
     def show_recipe_details(self, recipe, from_source='favorites'):
         detail_window = tk.Toplevel(self.root)
         detail_window.title(f"Детали: {recipe['name']}")
-        detail_window.geometry("600x500")  # Фикс: 500px, кнопки видны
+        detail_window.geometry("600x550")  # Фикс: 550px, кнопки видны
         detail_window.configure(bg='white')
         detail_window.resizable(False, False)
 
@@ -201,7 +204,7 @@ class KitchenMateApp:
         # Scrollable (меньше высота)
         canvas_frame = tk.Frame(detail_window, bg='white')
         canvas_frame.pack(fill='both', expand=True, padx=20, pady=10)
-        canvas = tk.Canvas(canvas_frame, bg='white', height=250)  # Фикс: меньше, кнопки видны
+        canvas = tk.Canvas(canvas_frame, bg='white', height=300)  # Фикс: 300px, кнопки видны
         scrollbar = tk.Scrollbar(canvas_frame, orient='vertical', command=canvas.yview)
         scrollable = tk.Frame(canvas, bg='white')
         scrollable.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
