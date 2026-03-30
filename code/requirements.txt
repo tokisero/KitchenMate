@@ -1,2 +1,3 @@
 requests
 pillow  # Для фото (опционально, добавь в load_photo)
+pytest>=8.0

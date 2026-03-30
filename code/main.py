@@ -5,6 +5,7 @@ import json
 from config import GREEN, RED, GRAY, PANTRY_ITEMS, SHOPPING_ITEMS, FAVORITES, TITLE_FONT, HEADER_FONT, BODY_FONT, \
     SMALL_FONT
 from db import Database
+from recipe_utils import filter_favorites_by_query, merge_missing_into_shopping
 from screens.main_screen import MainScreen
 from screens.pantry_screen import PantryScreen
 from screens.recipes_screen import RecipesScreen
@@ -148,7 +149,7 @@ class KitchenMateApp:
 
         # 1. ПОИСК В ЛОКАЛЬНОЙ БАЗЕ
         # Фильтруем те, что ты добавил вручную
-        local_results = [r for r in self.favorites if query.lower() in r['name'].lower()]
+        local_results = filter_favorites_by_query(self.favorites, query)
         
         if local_results:
             self.recipes_data = []
@@ -209,9 +210,7 @@ class KitchenMateApp:
             self.frames['favorites'].update_grid()
 
     def add_missing_to_shopping(self, missing_ings):
-        for ing in missing_ings:
-            if not any(p['name'].lower() == ing['name'] for p in self.shopping_items):
-                self.shopping_items.append({'name': ing['name'], 'amount': ing['amount'], 'checked': False})
+        self.shopping_items = merge_missing_into_shopping(self.shopping_items, missing_ings)
         self.db.save_shopping(self.shopping_items)
         self.frames['shopping'].update_checkboxes()
 
