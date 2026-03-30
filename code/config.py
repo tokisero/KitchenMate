@@ -1,15 +1,17 @@
 # Константы и мокап-данные
 
-# Цвета из мокапов
-GREEN = '#4CAF50'
-RED = '#F44336'
-GRAY = '#9E9E9E'
+# Цвета (более современные оттенки)
+GREEN = "#2D5A27"       # Глубокий лесной зеленый
+SOFT_GREEN = "#E8F5E9"  # Светлый фон для карточек
+RED = "#C62828"         # Мягкий красный
+GRAY = "#455A64"        # Антрацитовый для текста
+BG_COLOR = "#FAFAFA"    # Почти белый фон
 
-# Шрифты (единый стиль)
-TITLE_FONT = ('Arial', 20, 'bold')
-HEADER_FONT = ('Arial', 16, 'bold')
-BODY_FONT = ('Arial', 12)
-SMALL_FONT = ('Arial', 10)
+# Шрифты
+TITLE_FONT = ("Segoe UI", 24, "bold")
+HEADER_FONT = ("Segoe UI", 14, "bold")
+BODY_FONT = ("Segoe UI", 11)
+SMALL_FONT = ("Segoe UI", 10)
 
 # Мокап-данные (БД перезапишет)
 PANTRY_ITEMS = [

@@ -11,6 +11,7 @@ from screens.recipes_screen import RecipesScreen
 from screens.shopping_screen import ShoppingScreen
 from screens.favorites_screen import FavoritesScreen
 from screens.add_recipe_screen import AddRecipeScreen
+from screens.login_screen import LoginScreen
 
 
 class KitchenMateApp:
@@ -48,7 +49,36 @@ class KitchenMateApp:
         self.frames = {}
         self.create_screens()
         self.create_bottom_nav()
-        self.show_frame('main')
+        self.show_frame('login')
+
+    def handle_registration(self, username, password):
+        """Метод для обработки регистрации из интерфейса"""
+        if not username or not password:
+            messagebox.showwarning("Ошибка", "Заполните все поля!")
+            return
+
+        # Вызов 'серверной' логики из db.py
+        success = self.db.register_user(username, password)
+        
+        if success:
+            messagebox.showinfo("Успех", f"Аккаунт {username} создан!")
+        else:
+            messagebox.showerror("Ошибка", "Не удалось сохранить пользователя.")
+
+    def handle_login(self, username, password):
+        """Метод для обработки входа из интерфейса"""
+        if not username or not password:
+            messagebox.showwarning("Ошибка", "Введите логин и пароль!")
+            return
+
+        # Вызов серверной логики из db.py
+        is_valid = self.db.authenticate_user(username, password)
+        
+        if is_valid:
+            messagebox.showinfo("Успех", f"Добро пожаловать, {username}!")
+            self.show_frame('main') # Переход в главное меню после входа
+        else:
+            messagebox.showerror("Ошибка", "Неверный логин или пароль.")
 
     def create_screens(self):
         self.frames['main'] = MainScreen(self.root, self, self.green)
@@ -57,23 +87,23 @@ class KitchenMateApp:
         self.frames['shopping'] = ShoppingScreen(self.root, self, self.green, self.red, self.shopping_items)
         self.frames['favorites'] = FavoritesScreen(self.root, self, self.green, self.gray, self.favorites)
         self.frames['add'] = AddRecipeScreen(self.root, self, self.green, self.gray, self)
+        self.frames['login'] = LoginScreen(self.root, self, self.green)
 
     def create_bottom_nav(self):
-        self.nav_frame = tk.Frame(self.root, bg=self.green, height=100)
+        # Делаем панель выше и светлее
+        self.nav_frame = tk.Frame(self.root, bg="#F8F9FA", height=120, bd=1, relief='sunken')
         self.nav_frame.pack(side='bottom', fill='x')
 
         buttons = [
-            ('main', 'Главное меню'),
-            ('favorites', 'Избранное'),
-            ('add', 'Добавить рецепт'),
-            ('shopping', 'Список покупок')
+            ('main', '🏠 Главная'),
+            ('favorites', '⭐ Избранное'),
+            ('add', '➕ Свой рецепт'),
+            ('shopping', '🛒 Покупки')
         ]
+        
         for i, (tab, text) in enumerate(buttons):
             btn = ttk.Button(self.nav_frame, text=text, command=lambda t=tab: self.show_frame(t))
-            btn.grid(row=0, column=i, sticky='ew', padx=2, pady=20, ipadx=30)
-
-        for i in range(4):
-            self.nav_frame.grid_columnconfigure(i, weight=1)
+            btn.grid(row=0, column=i, sticky='ew', padx=10, pady=25) # Больше отступов
 
     def show_frame(self, frame_name):
         for frame in self.frames.values():
@@ -113,66 +143,59 @@ class KitchenMateApp:
 
     def search_recipes(self, query):
         if not query:
-            messagebox.showwarning("Ошибка", "Введите ингредиенты!")
+            messagebox.showwarning("Ошибка", "Введите название или ингредиент!")
             return
 
+        # 1. ПОИСК В ЛОКАЛЬНОЙ БАЗЕ
+        # Фильтруем те, что ты добавил вручную
+        local_results = [r for r in self.favorites if query.lower() in r['name'].lower()]
+        
+        if local_results:
+            self.recipes_data = []
+            for r in local_results:
+                self.recipes_data.append({
+                    'name': r['name'], # Унифицируем: всегда используем 'name'
+                    'ingredients': r.get('ingredients', ''),
+                    'instructions': r.get('instructions', 'Инструкция не найдена'),
+                    'local': True  
+                })
+            self.show_frame('recipes')
+            self.frames['recipes'].update_list()
+            return 
+
+        # 2. ПОИСК В ИНТЕРНЕТЕ (если в локальной базе пусто)
         try:
+            # Расширенный словарик для удобства
             translator = {
-                'помидоры': 'tomato',
-                'сыр': 'cheese',
-                'рис': 'rice',
-                'курица': 'chicken',
-                'мука': 'flour',
-                'молоко': 'milk',
-                'огурцы': 'cucumber'
+                'помидоры': 'tomato', 'сыр': 'cheese', 'курица': 'chicken', 
+                'рис': 'rice', 'яйца': 'egg', 'мясо': 'beef', 'паста': 'pasta'
             }
             ingredient = query.split(',')[0].strip().lower()
             eng_ing = translator.get(ingredient, ingredient)
 
             url = f"https://www.themealdb.com/api/json/v1/1/filter.php?i={eng_ing}"
             response = requests.get(url, timeout=10)
-
-            print(f"Debug: Запрос для '{eng_ing}' - Status: {response.status_code}")
-
-            if not response.ok:
-                raise Exception(f"Ошибка сервера: {response.status_code}")
-
             data = response.json()
-            meals = data.get('meals', [])
-            print(f"Debug: Количество meals: {len(meals)}")
+            meals = data.get('meals') 
 
-            if not meals:
-                messagebox.showinfo("Результат", f"Рецепты для '{eng_ing}' не найдены!")
+            if meals is None:
+                messagebox.showinfo("Результат", f"Рецепты '{query}' не найдены.")
                 return
 
             self.recipes_data = []
             for meal in meals[:5]:
-                detail_url = f"https://www.themealdb.com/api/json/v1/1/lookup.php?i={meal['idMeal']}"
-                detail_resp = requests.get(detail_url, timeout=5)
-                full_ingredients = []
-                if detail_resp.ok:
-                    detail_data = detail_resp.json()
-                    if detail_data.get('meals') and detail_data['meals'][0]:
-                        recipe = detail_data['meals'][0]
-                        for i in range(1, 21):
-                            ing = recipe.get(f'strIngredient{i}')
-                            if ing and (ing := ing.strip()):
-                                meas = recipe.get(f'strMeasure{i}', '').strip()
-                                full_ingredients.append({'name': ing.lower(), 'amount': meas if meas else '1 unit'})
-
+                # Для интернет-рецептов сохраняем ID, чтобы подтянуть инструкцию при клике
                 self.recipes_data.append({
-                    'title': meal.get('strMeal', 'Без названия'),
-                    'full_ingredients': full_ingredients,
-                    'href': f"https://www.themealdb.com/meal/{meal['idMeal']}-{meal['strMeal'].lower().replace(' ', '_')}"
+                    'name': meal.get('strMeal', 'Без названия'),
+                    'id': meal['idMeal'],
+                    'local': False
                 })
-
-            print(f"Debug: Добавлено рецептов: {len(self.recipes_data)}")
 
             self.show_frame('recipes')
             self.frames['recipes'].update_list()
+            
         except Exception as e:
-            print(f"Debug: Ошибка: {e}")
-            messagebox.showerror("Ошибка поиска", f"Проблема: {e}")
+            messagebox.showerror("Ошибка поиска", f"Ошибка сети: {e}")
 
     def add_to_favorites(self, recipe):
         self.favorites.append(recipe)
@@ -193,51 +216,93 @@ class KitchenMateApp:
         self.frames['shopping'].update_checkboxes()
 
     def show_recipe_details(self, recipe, from_source='favorites'):
+        # --- ШАГ 1: ПОДГРУЗКА ДАННЫХ (Lazy Loading) ---
+        # Если инструкции нет и это рецепт из API (не локальный), загружаем детали по ID
+        if not recipe.get('instructions') and not recipe.get('local'):
+            try:
+                url = f"https://www.themealdb.com/api/json/v1/1/lookup.php?i={recipe['id']}"
+                resp = requests.get(url, timeout=5)
+                if resp.ok:
+                    data = resp.json()
+                    if data.get('meals'):
+                        meal = data['meals'][0]
+                        recipe['instructions'] = meal.get('strInstructions', 'Инструкция отсутствует.')
+                        # Собираем ингредиенты из API в одну строку для отображения
+                        ings_list = []
+                        for i in range(1, 21):
+                            name = meal.get(f'strIngredient{i}')
+                            meas = meal.get(f'strMeasure{i}')
+                            if name and name.strip():
+                                ings_list.append(f"{name.strip()} ({meas.strip() if meas else ''})")
+                        recipe['ingredients'] = ", ".join(ings_list)
+            except Exception as e:
+                recipe['instructions'] = f"Не удалось загрузить данные из сети: {e}"
+
+        # --- ШАГ 2: СОЗДАНИЕ ИНТЕРФЕЙСА ОКНА ---
         detail_window = tk.Toplevel(self.root)
-        detail_window.title(f"Детали: {recipe['name']}")
-        detail_window.geometry("600x550")  # Фикс: 550px, кнопки видны
+        # Учитываем, что в разных источниках может быть 'name' или 'title'
+        recipe_name = recipe.get('name') or recipe.get('title') or "Без названия"
+        
+        detail_window.title(f"Рецепт: {recipe_name}")
+        detail_window.geometry("600x700")
         detail_window.configure(bg='white')
-        detail_window.resizable(False, False)
 
-        tk.Label(detail_window, text=recipe['name'], font=TITLE_FONT, bg='white').pack(pady=20)
+        # Красивый заголовок
+        header_frame = tk.Frame(detail_window, bg=self.green, height=80)
+        header_frame.pack(fill='x')
+        tk.Label(header_frame, text=recipe_name.upper(), font=TITLE_FONT, fg='white', bg=self.green).pack(pady=20)
 
-        # Scrollable (меньше высота)
+        # Контейнер со скроллом
         canvas_frame = tk.Frame(detail_window, bg='white')
-        canvas_frame.pack(fill='both', expand=True, padx=20, pady=10)
-        canvas = tk.Canvas(canvas_frame, bg='white', height=300)  # Фикс: 300px, кнопки видны
-        scrollbar = tk.Scrollbar(canvas_frame, orient='vertical', command=canvas.yview)
-        scrollable = tk.Frame(canvas, bg='white')
-        scrollable.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=scrollable, anchor='nw')
+        canvas_frame.pack(fill='both', expand=True, padx=30, pady=20)
+        
+        canvas = tk.Canvas(canvas_frame, bg='white', highlightthickness=0)
+        scrollbar = ttk.Scrollbar(canvas_frame, orient='vertical', command=canvas.yview)
+        scrollable_content = tk.Frame(canvas, bg='white')
+
+        scrollable_content.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=scrollable_content, anchor='nw', width=520)
         canvas.configure(yscrollcommand=scrollbar.set)
+
+        # --- ШАГ 3: ОТОБРАЖЕНИЕ ИНГРЕДИЕНТОВ ---
+        tk.Label(scrollable_content, text="🛒 ИНГРЕДИЕНТЫ", font=HEADER_FONT, bg='white', fg=self.green).pack(anchor='w', pady=(0, 10))
+        
+        # Получаем список ингредиентов (из строки базы или из объектов поиска)
+        raw_ingredients = recipe.get('ingredients', '')
+        if isinstance(raw_ingredients, str) and raw_ingredients:
+            ings_to_show = raw_ingredients.split(', ')
+        elif recipe.get('full_ingredients'):
+            ings_to_show = [f"{i['name']} ({i.get('amount', '')})" for i in recipe['full_ingredients']]
+        else:
+            ings_to_show = ["Список ингредиентов пуст"]
+
+        for ing in ings_to_show:
+            f = tk.Frame(scrollable_content, bg="#F1F8E9", pady=2)
+            f.pack(fill='x', pady=2)
+            tk.Label(f, text=f"  • {ing}", font=BODY_FONT, bg="#F1F8E9", fg="#333").pack(side='left')
+
+        # --- ШАГ 4: ОТОБРАЖЕНИЕ ИНСТРУКЦИИ ---
+        tk.Label(scrollable_content, text="👨‍🍳 ИНСТРУКЦИЯ ПО ПРИГОТОВЛЕНИЮ", font=HEADER_FONT, bg='white', fg=self.green).pack(anchor='w', pady=(25, 10))
+        
+        # Берем текст инструкции и делаем его читаемым (добавляем абзацы)
+        raw_text = recipe.get('instructions', 'Инструкция не предоставлена.')
+        nice_text = raw_text.replace('. ', '.\n\n')
+        
+        instructions_label = tk.Label(scrollable_content, text=nice_text, font=BODY_FONT, bg='white', 
+                                      justify='left', wraplength=500, fg="#444")
+        instructions_label.pack(anchor='w', pady=5)
+
         canvas.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
 
-        # Ингредиенты
-        tk.Label(scrollable, text="Ингредиенты:", font=HEADER_FONT, bg='white').pack(anchor='w', pady=(0, 5))
-        for ing in recipe.get('ingredients', '').split(', '):
-            tk.Label(scrollable, text=f"• {ing}", font=BODY_FONT, bg='white', fg=GREEN).pack(anchor='w')
-
-        # Инструкция
-        tk.Label(scrollable, text="Инструкция:", font=HEADER_FONT, bg='white').pack(anchor='w', pady=(10, 0))
-        instr_label = tk.Label(scrollable, text=recipe['instructions'], font=BODY_FONT, bg='white', justify='left',
-                               wraplength=550)
-        instr_label.pack(pady=5)
-
-        # Кнопки (pady=20 для видимости)
-        btn_frame = tk.Frame(detail_window, bg='white')
-        btn_frame.pack(pady=20)
+        # Панель кнопок внизу (Footer)
+        footer = tk.Frame(detail_window, bg='#F5F5F5', pady=15)
+        footer.pack(fill='x', side='bottom')
 
         if from_source == 'search':
-            ttk.Button(btn_frame, text="В избранное", width=20, command=lambda: self.add_to_favorites(recipe)).pack(
-                side='left', padx=10, pady=10)
-        else:
-            ttk.Button(btn_frame, text="В покупки", width=20,
-                       command=lambda: self.add_missing_to_shopping(recipe)).pack(side='left', padx=10, pady=10)
-
-        ttk.Button(btn_frame, text="Закрыть", width=20, command=detail_window.destroy).pack(side='left', padx=10,
-                                                                                            pady=10)
-
+            ttk.Button(footer, text="❤ В ИЗБРАННОЕ", command=lambda: self.add_to_favorites(recipe)).pack(side='left', padx=20)
+        
+        ttk.Button(footer, text="ЗАКРЫТЬ", command=detail_window.destroy).pack(side='right', padx=20)
     def get_pantry_items(self):
         return self.pantry_items
 

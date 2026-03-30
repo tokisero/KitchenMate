@@ -1,4 +1,5 @@
 import tkinter as tk
+from config import HEADER_FONT, SMALL_FONT, GREEN
 from tkinter import ttk, messagebox
 import webbrowser
 from config import TITLE_FONT, HEADER_FONT, BODY_FONT, GREEN
@@ -40,42 +41,41 @@ class RecipesScreen(tk.Frame):
             pady=20)
 
     def update_list(self):
-        for widget in self.scrollable_frame.winfo_children():
-            widget.destroy()
+        # Очистка старого списка
+        for child in self.scrollable_frame.winfo_children():
+            child.destroy()
 
-        for recipe in self.app.recipes_data:
-            card = tk.Frame(self.scrollable_frame, bg='white', relief='flat', bd=0, padx=20, pady=20)
-            card.pack(fill='x', pady=10)
+        if not self.controller.recipes_data:
+            tk.Label(self.scrollable_frame, text="Ничего не найдено", font=HEADER_FONT, bg='white').pack(pady=20)
+            return
 
-            # Название
-            tk.Label(card, text=recipe['title'], font=HEADER_FONT, bg='white').pack(anchor='w', pady=(0, 10))
+        for recipe in self.controller.recipes_data:
+            display_name = recipe.get('name') or recipe.get('title') or "Без названия"
+            
+            # Создаем карточку
+            card = tk.Frame(self.scrollable_frame, bg='white', highlightbackground="#2D5A27", 
+                            highlightthickness=1, padx=15, pady=15)
+            card.pack(fill='x', pady=10, padx=10)
 
-            # Ингредиенты с цветом
-            ing_frame = tk.Frame(card, bg='white')
-            ing_frame.pack(fill='x', pady=10)
-            for ing in recipe.get('full_ingredients', []):
-                name = ing['name'].lower()
-                pantry_match = any(p['name'].lower() == name for p in self.app.pantry_items)
-                color = self.green if pantry_match else self.red  # Теперь self.red работает
-                fg = 'white' if color == self.red else 'black'
-                bg = 'lightgreen' if pantry_match else 'lightcoral'
-                label = tk.Label(ing_frame, text=f"{ing['amount']} {ing['name'].title()}", fg=fg, bg=bg, font=BODY_FONT,
-                                 relief='flat', padx=10, pady=5)
-                label.pack(anchor='w')
+            # Название рецепта
+            tk.Label(card, text=display_name, font=HEADER_FONT, bg='white', 
+                     fg="#2D5A27", wraplength=500, justify='left').pack(anchor='w', pady=(0, 5))
 
-            # Сердечко
-            heart = tk.Label(card, text='♥', font=('Arial', 20), fg=self.green, bg='white')
-            heart.pack(anchor='e')
-            heart.bind('<Button-1>', lambda e, r=recipe: self.add_to_favorite(r))
+            # Ингредиенты (кратко)
+            ings_text = recipe.get('ingredients', '')
+            if ings_text:
+                tk.Label(card, text=f"Ингредиенты: {ings_text[:100]}...", 
+                         font=SMALL_FONT, bg='white', fg='gray').pack(anchor='w')
 
-            # Клик по карточке — детали
-            card.bind('<Button-1>', lambda e, r=recipe: self.app.show_recipe_details(r, 'search'))
-
-        self.canvas.update_idletasks()
-        print(f"Debug UI: Добавлено {len(self.app.recipes_data)} карточек")
-
-    def add_to_favorite(self, recipe):
-        favorite_recipe = {
+            # Кнопка открытия
+            btn_frame = tk.Frame(card, bg='white')
+            btn_frame.pack(fill='x', pady=(10, 0))
+            
+            ttk.Button(btn_frame, text="📖 Инструкция", 
+                       command=lambda r=recipe: self.controller.show_recipe_details(r, from_source='search' if not r.get('local') else 'favorites')).pack(side='left') 
+            
+        def add_to_favorite(self, recipe):
+            favorite_recipe = {
             'name': recipe['title'],
             'ingredients': ', '.join(
                 [f"{i['amount']} {i['name'].title()}" for i in recipe.get('full_ingredients', [])]),
