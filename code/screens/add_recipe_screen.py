@@ -23,6 +23,9 @@ class AddRecipeScreen(tk.Frame):
         self.name_entry = ttk.Entry(self, width=40, font=BODY_FONT)  # Компактнее
         self.name_entry.pack(pady=5)
 
+        self.name_entry.bind("<Return>", lambda e: self.ing_combo.focus_set())
+        self.name_entry.bind("<Escape>", lambda e: self.name_entry.delete(0, tk.END))
+
         # Ингредиент
         ing_frame = tk.Frame(self, bg='white')
         ing_frame.pack(pady=10)
@@ -30,6 +33,9 @@ class AddRecipeScreen(tk.Frame):
         self.ing_combo = ttk.Combobox(ing_frame, values=INGREDIENTS_OPTIONS, width=25, font=BODY_FONT)  # Компактнее
         self.ing_combo.pack(side='left', padx=10)
         ttk.Button(ing_frame, text="Добавить", command=self.add_ingredient).pack(side='left', padx=10)
+        self.ing_combo.bind("<Escape>", lambda e: self.ing_combo.set(''))
+
+        self.ing_combo.bind("<Return>", self.add_ingredient)
 
         # Список ингредиентов
         tk.Label(self, text="Список ингредиентов:", font=BODY_FONT, bg='white').pack(pady=(10, 0))
@@ -45,6 +51,9 @@ class AddRecipeScreen(tk.Frame):
         tk.Label(self, text="Время приготовления:", font=BODY_FONT, bg='white').pack(pady=5)
         self.time_combo = ttk.Combobox(self, values=TIME_OPTIONS, width=47, font=BODY_FONT)  # Компактнее
         self.time_combo.pack(pady=5)
+
+        self.time_combo.bind("<Return>", self.save_recipe)
+        self.time_combo.bind("<Escape>", lambda e: self.time_combo.set(''))
 
         # Кнопки
         btn_frame = tk.Frame(self, bg='white')

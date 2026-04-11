@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
-from config import TITLE_FONT, BODY_FONT
+from config import TITLE_FONT, BODY_FONT, SOFT_GREEN
+from ui_helpers import confirm_destructive
 
 
 class ShoppingScreen(tk.Frame):
@@ -52,11 +53,41 @@ class ShoppingScreen(tk.Frame):
                                  command=self.add_item)
         self.add_btn.pack(side='right')
 
+        self.shop_entry.bind("<Return>", self.add_item)
+        self.shop_entry.bind("<Escape>", lambda e: self.shop_entry.delete(0, tk.END))
+
     def update_checkboxes(self):
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
         self.shopping_vars = []
         self.check_frames = []
+
+        if not self.items:
+            empty = tk.Frame(
+                self.scrollable_frame,
+                bg=SOFT_GREEN,
+                highlightbackground=self.green,
+                highlightthickness=2,
+                padx=20,
+                pady=28,
+            )
+            empty.pack(fill='both', expand=True)
+            tk.Label(
+                empty,
+                text="Список покупок пуст",
+                font=TITLE_FONT,
+                bg=SOFT_GREEN,
+                fg=self.green,
+            ).pack(anchor='w')
+            tk.Label(
+                empty,
+                text="Введите название покупки в поле ниже и нажмите «Добавить».\n"
+                "Недостающие ингредиенты из рецепта можно добавить из карточки найденного блюда.",
+                font=BODY_FONT,
+                bg=SOFT_GREEN,
+                justify='left',
+            ).pack(anchor='w', pady=(10, 0))
+            return
 
         for idx, item in enumerate(self.items):
             frame = tk.Frame(self.scrollable_frame, bg='white')
@@ -69,8 +100,17 @@ class ShoppingScreen(tk.Frame):
             chk.pack(side='left', fill='x', expand=True)  # Текст слева с пробелами (expand)
 
             # Крестик в самом правом краю
-            del_btn = tk.Button(frame, text='❌', bg=self.red, fg='white', font=BODY_FONT,
-                                relief='flat', bd=0, width=2, command=lambda i=idx: self.delete_item(i))
+            del_btn = tk.Button(
+                frame,
+                text='Удалить',
+                bg=self.red,
+                fg='white',
+                font=BODY_FONT,
+                relief='flat',
+                bd=0,
+                width=10,
+                command=lambda i=idx: self.delete_item(i),
+            )
             del_btn.pack(side='right', padx=0)  # Самый правый край
 
             self.check_frames.append(frame)
@@ -104,7 +144,13 @@ class ShoppingScreen(tk.Frame):
             self.shop_entry.delete(0, tk.END)
 
     def delete_item(self, idx):
-        if messagebox.askyesno("Удалить", f"Удалить {self.items[idx]['name']}?"):
+        name = self.items[idx]['name']
+        if confirm_destructive(
+            self,
+            "Удаление из списка",
+            f"Удалить «{name}» из списка покупок?",
+            None,
+        ):
             del self.items[idx]
             self.shopping_vars.pop(idx)
             self.controller.db.save_shopping(self.items)

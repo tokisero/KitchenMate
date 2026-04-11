@@ -1,11 +1,16 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import requests
 import json
 from config import GREEN, RED, GRAY, PANTRY_ITEMS, SHOPPING_ITEMS, FAVORITES, TITLE_FONT, HEADER_FONT, BODY_FONT, \
     SMALL_FONT
 from db import Database
-from recipe_utils import filter_favorites_by_query, merge_missing_into_shopping
+from recipe_utils import (
+    filter_favorites_by_query,
+    merge_missing_into_shopping,
+    parse_ingredients_string,
+    missing_ingredients_vs_pantry,
+)
+from mealdb_api import lookup_meal, search_by_ingredient, search_by_name
 from screens.main_screen import MainScreen
 from screens.pantry_screen import PantryScreen
 from screens.recipes_screen import RecipesScreen
@@ -45,11 +50,13 @@ class KitchenMateApp:
         self.favorites = self.db.load_favorites() or FAVORITES.copy()
         self.recipes_data = []
 
-        self.current_tab = 'main'
+        self.current_tab = 'login'
+        self.authenticated = False
 
         self.frames = {}
         self.create_screens()
         self.create_bottom_nav()
+        self.nav_frame.pack_forget()
         self.show_frame('login')
 
     def handle_registration(self, username, password):
@@ -77,7 +84,9 @@ class KitchenMateApp:
         
         if is_valid:
             messagebox.showinfo("Успех", f"Добро пожаловать, {username}!")
-            self.show_frame('main') # Переход в главное меню после входа
+            self.authenticated = True
+            self.nav_frame.pack(side='bottom', fill='x')
+            self.show_frame('main')
         else:
             messagebox.showerror("Ошибка", "Неверный логин или пароль.")
 
@@ -107,6 +116,9 @@ class KitchenMateApp:
             btn.grid(row=0, column=i, sticky='ew', padx=10, pady=25) # Больше отступов
 
     def show_frame(self, frame_name):
+        if not self.authenticated and frame_name != 'login':
+            messagebox.showwarning("Требуется вход", "Войдите в аккаунт, чтобы пользоваться приложением.")
+            return
         for frame in self.frames.values():
             frame.place_forget()
         self.frames[frame_name].place(x=0, y=0, width=800, height=700)
@@ -115,7 +127,11 @@ class KitchenMateApp:
         self.animate_fade_in(self.frames[frame_name])
 
         if frame_name == 'pantry':
-            self.frames['pantry'].update_table()  # Обновление при входе
+            self.frames['pantry'].update_table()
+        if frame_name == 'favorites':
+            self.frames['favorites'].update_grid()
+        if frame_name == 'shopping':
+            self.frames['shopping'].update_checkboxes()
 
     def update_tab_highlight(self):
         for child in self.nav_frame.winfo_children():
@@ -143,6 +159,9 @@ class KitchenMateApp:
         fade_step()
 
     def search_recipes(self, query):
+        if not self.authenticated:
+            messagebox.showwarning("Требуется вход", "Войдите в аккаунт, чтобы искать рецепты.")
+            return
         if not query:
             messagebox.showwarning("Ошибка", "Введите название или ингредиент!")
             return
@@ -164,42 +183,68 @@ class KitchenMateApp:
             self.frames['recipes'].update_list()
             return 
 
-        # 2. ПОИСК В ИНТЕРНЕТЕ (если в локальной базе пусто)
+        # 2. ПОИСК В ИНТЕРНЕТЕ (TheMealDB)
         try:
-            # Расширенный словарик для удобства
             translator = {
-                'помидоры': 'tomato', 'сыр': 'cheese', 'курица': 'chicken', 
-                'рис': 'rice', 'яйца': 'egg', 'мясо': 'beef', 'паста': 'pasta'
+                'помидоры': 'tomato',
+                'сыр': 'cheese',
+                'курица': 'chicken',
+                'рис': 'rice',
+                'яйца': 'egg',
+                'мясо': 'beef',
+                'паста': 'pasta',
+                'лук': 'onion',
+                'чеснок': 'garlic',
             }
-            ingredient = query.split(',')[0].strip().lower()
-            eng_ing = translator.get(ingredient, ingredient)
+            token = query.split(',')[0].strip().lower()
+            eng_ing = translator.get(token, token)
 
-            url = f"https://www.themealdb.com/api/json/v1/1/filter.php?i={eng_ing}"
-            response = requests.get(url, timeout=10)
-            data = response.json()
-            meals = data.get('meals') 
+            self.recipes_data = search_by_ingredient(eng_ing)
+            if not self.recipes_data:
+                self.recipes_data = search_by_name(query.strip())
 
-            if meals is None:
-                messagebox.showinfo("Результат", f"Рецепты '{query}' не найдены.")
+            if not self.recipes_data:
+                messagebox.showinfo("Результат", f"Рецепты по запросу «{query}» не найдены.")
                 return
-
-            self.recipes_data = []
-            for meal in meals[:5]:
-                # Для интернет-рецептов сохраняем ID, чтобы подтянуть инструкцию при клике
-                self.recipes_data.append({
-                    'name': meal.get('strMeal', 'Без названия'),
-                    'id': meal['idMeal'],
-                    'local': False
-                })
 
             self.show_frame('recipes')
             self.frames['recipes'].update_list()
-            
+
         except Exception as e:
             messagebox.showerror("Ошибка поиска", f"Ошибка сети: {e}")
 
     def add_to_favorites(self, recipe):
-        self.favorites.append(recipe)
+        if not self.authenticated:
+            messagebox.showwarning("Требуется вход", "Войдите в аккаунт.")
+            return
+        r = dict(recipe)
+        mid = r.get('id') or r.get('meal_id')
+        if mid:
+            mid = str(mid)
+            loaded = lookup_meal(mid)
+            if loaded:
+                r.update(loaded)
+
+        row = {
+            'name': (r.get('name') or 'Без названия').strip(),
+            'ingredients': (r.get('ingredients') or '').strip(),
+            'instructions': (r.get('instructions') or '').strip(),
+            'time': (r.get('time') or '—'),
+            'meal_id': mid if mid else None,
+            'local': bool(r.get('local', False)) if mid else True,
+        }
+
+        if row['meal_id']:
+            if any((f.get('meal_id') or '') == row['meal_id'] for f in self.favorites):
+                messagebox.showinfo("Избранное", "Этот рецепт уже в избранном.")
+                return
+        else:
+            name_key = row['name'].lower()
+            if any((f.get('name') or '').strip().lower() == name_key for f in self.favorites):
+                messagebox.showinfo("Избранное", "Рецепт с таким названием уже в избранном.")
+                return
+
+        self.favorites.append(row)
         self.db.save_favorites(self.favorites)
         self.frames['favorites'].update_grid()
 
@@ -214,28 +259,41 @@ class KitchenMateApp:
         self.db.save_shopping(self.shopping_items)
         self.frames['shopping'].update_checkboxes()
 
+    def add_missing_from_recipe(self, recipe) -> int:
+        """Добавляет недостающие ингредиенты рецепта в кладовую с количеством 0. Возвращает число новых позиций."""
+        r = dict(recipe)
+        full = r.get('full_ingredients') or []
+        rid = r.get('id') or r.get('meal_id')
+        if not full and rid and not r.get('local'):
+            data = lookup_meal(str(rid))
+            if data:
+                full = data.get('full_ingredients') or []
+        if not full and r.get('ingredients'):
+            full = parse_ingredients_string(r['ingredients'])
+        missing = missing_ingredients_vs_pantry(full, self.pantry_items)
+        if missing:
+            for ing in missing:
+                self.pantry_items.append({'name': ing['name'], 'amount': '0'})
+            self.update_pantry_items(self.pantry_items)
+            self.frames['pantry'].update_table()
+        return len(missing)
+
     def show_recipe_details(self, recipe, from_source='favorites'):
-        # --- ШАГ 1: ПОДГРУЗКА ДАННЫХ (Lazy Loading) ---
-        # Если инструкции нет и это рецепт из API (не локальный), загружаем детали по ID
-        if not recipe.get('instructions') and not recipe.get('local'):
-            try:
-                url = f"https://www.themealdb.com/api/json/v1/1/lookup.php?i={recipe['id']}"
-                resp = requests.get(url, timeout=5)
-                if resp.ok:
-                    data = resp.json()
-                    if data.get('meals'):
-                        meal = data['meals'][0]
-                        recipe['instructions'] = meal.get('strInstructions', 'Инструкция отсутствует.')
-                        # Собираем ингредиенты из API в одну строку для отображения
-                        ings_list = []
-                        for i in range(1, 21):
-                            name = meal.get(f'strIngredient{i}')
-                            meas = meal.get(f'strMeasure{i}')
-                            if name and name.strip():
-                                ings_list.append(f"{name.strip()} ({meas.strip() if meas else ''})")
-                        recipe['ingredients'] = ", ".join(ings_list)
-            except Exception as e:
-                recipe['instructions'] = f"Не удалось загрузить данные из сети: {e}"
+        if not self.authenticated:
+            messagebox.showwarning("Требуется вход", "Войдите в аккаунт.")
+            return
+        recipe = dict(recipe)
+        rid = recipe.get('id') or recipe.get('meal_id')
+
+        # Lazy load из TheMealDB по id
+        if rid and not recipe.get('local'):
+            need = not (recipe.get('instructions') or '').strip() or not (recipe.get('ingredients') or '').strip()
+            if need:
+                loaded = lookup_meal(str(rid))
+                if loaded:
+                    recipe.update(loaded)
+                elif not recipe.get('instructions'):
+                    recipe['instructions'] = 'Не удалось загрузить рецепт по сети.'
 
         # --- ШАГ 2: СОЗДАНИЕ ИНТЕРФЕЙСА ОКНА ---
         detail_window = tk.Toplevel(self.root)
@@ -266,19 +324,26 @@ class KitchenMateApp:
         # --- ШАГ 3: ОТОБРАЖЕНИЕ ИНГРЕДИЕНТОВ ---
         tk.Label(scrollable_content, text="🛒 ИНГРЕДИЕНТЫ", font=HEADER_FONT, bg='white', fg=self.green).pack(anchor='w', pady=(0, 10))
         
-        # Получаем список ингредиентов (из строки базы или из объектов поиска)
-        raw_ingredients = recipe.get('ingredients', '')
-        if isinstance(raw_ingredients, str) and raw_ingredients:
-            ings_to_show = raw_ingredients.split(', ')
-        elif recipe.get('full_ingredients'):
-            ings_to_show = [f"{i['name']} ({i.get('amount', '')})" for i in recipe['full_ingredients']]
+        # Получаем список ингредиентов (предпочитаем full_ingredients для точной проверки)
+        full_ings = recipe.get('full_ingredients') or []
+        if not full_ings and recipe.get('ingredients'):
+            full_ings = parse_ingredients_string(recipe['ingredients'])
+        
+        if full_ings:
+            for ing in full_ings:
+                name = ing.get('name', '').strip()
+                amount = ing.get('amount', '').strip()
+                display_text = f"{name} ({amount})" if amount else name
+                
+                # Проверяем наличие в кладовой
+                in_pantry = any(p['name'].lower() == name.lower() for p in self.pantry_items)
+                color = self.green if in_pantry else self.red
+                
+                f = tk.Frame(scrollable_content, bg="#F1F8E9", pady=2)
+                f.pack(fill='x', pady=2)
+                tk.Label(f, text=f"  • {display_text}", font=BODY_FONT, bg="#F1F8E9", fg=color).pack(side='left')
         else:
-            ings_to_show = ["Список ингредиентов пуст"]
-
-        for ing in ings_to_show:
-            f = tk.Frame(scrollable_content, bg="#F1F8E9", pady=2)
-            f.pack(fill='x', pady=2)
-            tk.Label(f, text=f"  • {ing}", font=BODY_FONT, bg="#F1F8E9", fg="#333").pack(side='left')
+            tk.Label(scrollable_content, text="Список ингредиентов пуст", font=BODY_FONT, bg='white', fg='gray').pack(anchor='w')
 
         # --- ШАГ 4: ОТОБРАЖЕНИЕ ИНСТРУКЦИИ ---
         tk.Label(scrollable_content, text="👨‍🍳 ИНСТРУКЦИЯ ПО ПРИГОТОВЛЕНИЮ", font=HEADER_FONT, bg='white', fg=self.green).pack(anchor='w', pady=(25, 10))
@@ -299,9 +364,27 @@ class KitchenMateApp:
         footer.pack(fill='x', side='bottom')
 
         if from_source == 'search':
-            ttk.Button(footer, text="❤ В ИЗБРАННОЕ", command=lambda: self.add_to_favorites(recipe)).pack(side='left', padx=20)
-        
-        ttk.Button(footer, text="ЗАКРЫТЬ", command=detail_window.destroy).pack(side='right', padx=20)
+            ttk.Button(footer, text="В избранное", command=lambda: self.add_to_favorites(recipe)).pack(
+                side='left', padx=20
+            )
+
+        def add_missing_cb():
+            n = self.add_missing_from_recipe(recipe)
+            if n:
+                messagebox.showinfo("Кладовая", f"Добавлено в кладовую: {n}.")
+            else:
+                messagebox.showinfo(
+                    "OK",
+                    "Все ингредиенты уже есть в кладовой или не удалось разобрать список ингредиентов.",
+                )
+
+        ttk.Button(
+            footer,
+            text="Добавить недостающие в кладовую",
+            command=add_missing_cb,
+        ).pack(side='left', padx=20)
+
+        ttk.Button(footer, text="Закрыть", command=detail_window.destroy).pack(side='right', padx=20)
     def get_pantry_items(self):
         return self.pantry_items
 

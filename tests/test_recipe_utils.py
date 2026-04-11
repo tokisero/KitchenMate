@@ -3,7 +3,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "code"))
 
-from recipe_utils import filter_favorites_by_query, merge_missing_into_shopping
+from recipe_utils import (
+    filter_favorites_by_query,
+    merge_missing_into_shopping,
+    parse_ingredients_string,
+    missing_ingredients_vs_pantry,
+)
 
 
 def test_filter_favorites_empty_query():
@@ -30,3 +35,18 @@ def test_merge_missing_preserves_existing():
     out = merge_missing_into_shopping(existing, [])
     assert len(out) == 1
     assert out[0]["checked"] is True
+
+
+def test_parse_ingredients_string():
+    s = "Помидоры (2 шт), Сыр (100г)"
+    out = parse_ingredients_string(s)
+    assert len(out) == 2
+    assert out[0]["name"] == "Помидоры"
+
+
+def test_missing_vs_pantry():
+    full = [{"name": "Молоко", "amount": "1л"}, {"name": "Яйца", "amount": "3"}]
+    pantry = [{"name": "молоко", "amount": "2л"}]
+    miss = missing_ingredients_vs_pantry(full, pantry)
+    assert len(miss) == 1
+    assert "Яйца" in miss[0]["name"]

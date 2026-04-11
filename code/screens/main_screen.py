@@ -21,5 +21,8 @@ class MainScreen(tk.Frame):
         ttk.Button(main_container, text="Найти рецепты",
                    command=lambda: self.controller.search_recipes(self.search_entry.get())).pack(pady=10)
 
+        self.search_entry.bind("<Return>", lambda e: self.controller.search_recipes(self.search_entry.get()))
+        self.search_entry.bind("<Escape>", lambda e: self.search_entry.delete(0, tk.END))
+
         ttk.Button(main_container, text="Моя кладовая", command=lambda: self.controller.show_frame('pantry')).pack(
             pady=10)
